@@ -1,0 +1,54 @@
+---
+- name: Gestion des utilisateurs sur les serveurs
+  hosts:
+    - servera
+    - serverb
+  become: yes
+  vars:
+    user_name: "romuald"
+    user_password: "{{ 'password' | password_hash('sha512') }}"  # Utilisez un mot de passe sécurisé
+    user_group: "sudo"
+    user_shell: "/bin/bash"
+    user_home: "/home/{{ user_name }}"
+    user_state: "present"  # Peut être "present" ou "absent"
+    user_append: "yes"     # "yes" pour ajouter à un groupe, "no" pour remplacer
+
+  tasks:
+    - name: Créer ou modifier un utilisateur
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        comment: "Utilisateur géré par Ansible"
+        shell: "{{ user_shell }}"
+        home: "{{ user_home }}"
+        password: "{{ user_password }}"
+        state: "{{ user_state }}"
+      register: user_result
+
+    - name: Assigner un utilisateur à un groupe
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        groups: "{{ user_group }}"
+        append: "{{ user_append }}"
+        state: "{{ user_state }}"
+      when: user_state == "present"
+      register: group_result
+
+    - name: Supprimer un utilisateur
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        state: "absent"
+      when: user_state == "absent"
+      register: remove_result
+
+    - name: Afficher les résultats de création/modification
+      ansible.builtin.debug:
+        msg: "Utilisateur {{ user_name }} {{ 'créé/modifié' if user_result.changed else 'déjà existant' }}."
+
+    - name: Afficher les résultats d'ajout au groupe
+      ansible.builtin.debug:
+        msg: "Utilisateur {{ user_name }} ajouté au groupe {{ user_group }}."
+
+    - name: Afficher les résultats de suppression
+      ansible.builtin.debug:
+        msg: "Utilisateur {{ user_name }} supprimé."
+      when: user_state == "absent"
